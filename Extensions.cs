@@ -1,4 +1,5 @@
 ﻿using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 
 namespace TALOREAL_NETCORE_API {
 
@@ -294,6 +295,21 @@ namespace TALOREAL_NETCORE_API {
             return filtered;
         }
 
+        /// <summary>
+        /// Converts a string into a unicode formatted byte array (2 bytes/char).
+        /// </summary>
+        /// <param name="str">The string to convert.</param>
+        /// <returns>A byte array representation of the string.</returns>
+        public static byte[] GetBytes(this string str) {
+            byte[] arr = new byte[str.Length * 2];
+            for (int i = 0; i < str.Length; i++) {
+                byte[] one = BitConverter.GetBytes(str[i]);
+                arr[(i * 2) + 0] = one[0];
+                arr[(i * 2) + 1] = one[1];
+            }
+            return arr;
+        }
+
         #endregion
 
         #region Byte Array Extensions
@@ -342,6 +358,72 @@ namespace TALOREAL_NETCORE_API {
                 binary += Convert.ToString(data[i], 2).PadLeft(8, '0') + (csv == true ? ", " : "");
             }
             return binary;
+        }
+
+        /// <summary>
+        /// Converts a unicode formated (2 bytes/char) byte array to a string.
+        /// </summary>
+        /// <param name="bytes">The byte array to convert.</param>
+        /// <returns>The string representation of the byte array.</returns>
+        public static string GetString(this byte[] bytes) {
+            string buffer = "";
+            for (int i = 0; i < bytes.Length - 1; i += 2) {
+                buffer += BitConverter.ToChar(bytes, i);
+            }
+            return buffer;
+        }
+
+        /// <summary>
+        /// Reads a char from a byte array starting at a specified index and advances the index by 2.
+        /// </summary>
+        /// <param name="data">The array to read from.</param>
+        /// <param name="readIndex">The current offset inside of the byte array.</param>
+        /// <param name="result">The resulting character, if the current offset was invalid than this value is '\0'.</param>
+        /// <returns>True if a char was successfully read from the byte array, false otherwise.</returns>
+        public static bool ReadCharFromBytes(this byte[] data, ref int readIndex, out char result) {
+            result = '\0';
+            if (readIndex >= 0 && readIndex <= data.Length - 2) {
+                result = BitConverter.ToChar(data, readIndex);
+                readIndex += 2;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Reads a string from a byte array starting at a specified index and advances the index by the 
+        /// expected number of characters * 2 (unicode char length in bytes.)
+        /// </summary>
+        /// <param name="arr">The byte array to read from.</param>
+        /// <param name="curOffset">The current offset inside the byte array.</param>
+        /// <param name="expectedLength">The expected length of the string in characters.</param>
+        /// <param name="result">The resulting string, if the current offset was invalid, this value is an empty string.</param>
+        /// <returns>True if the string was successfully read from the byte array, false otherwise.</returns>
+        public static bool ReadStringFromBytes(this byte[] arr, ref int curOffset, int expectedLength, out string result) {
+            result = "";
+            if (curOffset >= 0 && curOffset <= arr.Length - (expectedLength * 2)) {
+                result = arr.SubArray(curOffset, expectedLength * 2).GetString();
+                curOffset += expectedLength * 2;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Reads an int from a byte array starting at a specified index and advances the index by 4.
+        /// </summary>
+        /// <param name="data">The array to read from.</param>
+        /// <param name="readIndex">The current offset inside of the byte array.</param>
+        /// <param name="result">The resulting integer, if the current offset was invalid than this value is int.MinValue.</param>
+        /// <returns>True if an int was successfully read from the byte array, false otherwise.</returns>
+        public static bool ReadIntFromBytes(this byte[] data, ref int readIndex, out int result) {
+            result = int.MinValue;
+            if (readIndex >= 0 && readIndex <= data.Length - 4) {
+                result = BitConverter.ToInt32(data, readIndex);
+                readIndex += 4;
+                return true;
+            }
+            return false;
         }
 
         #endregion
