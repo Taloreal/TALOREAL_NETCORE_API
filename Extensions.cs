@@ -324,6 +324,13 @@ namespace TALOREAL_NETCORE_API {
             return ndxs;
         }
 
+        /// <summary>
+        /// Checks if the array contains all of the elements of another array.
+        /// </summary>
+        /// <typeparam name="T">The type of arrays to work with.</typeparam>
+        /// <param name="array">The containing array to check.</param>
+        /// <param name="subset">The array of elements to check.</param>
+        /// <returns>True if all of subset is in the array.</returns>
         public static bool ContainsArray<T>(this T?[] array, T?[] subset) { 
             if (array.Length < subset.Length) { return false; }
 

@@ -11,6 +11,9 @@ namespace TALOREAL_NETCORE_API {
     /// <param name="nVal">The new value.</param>
     public delegate void Listener(string key, Type type, object? oVal, object? nVal);
 
+    /// <summary>
+    /// A class to make getting and setting variables that persist between executions of programs easier.
+    /// </summary>
     public static class Settings {
 
         /// <summary>
@@ -66,6 +69,9 @@ namespace TALOREAL_NETCORE_API {
                 { p = DateTime.TryParse(s, out DateTime val); return val; } },
         };
 
+        /// <summary>
+        /// Will the database save for each change?
+        /// </summary>
         public static bool Autosave = true;
 
 

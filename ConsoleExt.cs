@@ -194,6 +194,12 @@ namespace TALOREAL_NETCORE_API {
             else { Console.Write(prompt); }
         }
 
+        /// <summary>
+        /// Writes a prompt onto the console at a specific location and then reset the cursor position back to where it was.
+        /// </summary>
+        /// <param name="prompt">The prompt to display.</param>
+        /// <param name="pos">The position to print the prompt.</param>
+        /// <param name="lined">Should a newline character be printed as well?</param>
         public static void WriteAtPosition(string prompt, (int x, int y) pos, bool lined = false) {
             var (left, top) = Console.GetCursorPosition();
             Console.SetCursorPosition(pos.x, pos.y);
