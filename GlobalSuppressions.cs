@@ -9,3 +9,4 @@ using System.Diagnostics.CodeAnalysis;
 [assembly: SuppressMessage("Style", "IDE0057:Use range operator", Justification = "<Pending>", Scope = "member", Target = "~M:TALOREAL_NETCORE_API.Extensions.Split(System.String,System.String,System.StringSplitOptions)~System.String[]")]
 [assembly: SuppressMessage("Interoperability", "CA1416:Validate platform compatibility", Justification = "<Pending>", Scope = "member", Target = "~M:TALOREAL_NETCORE_API.ConsoleSelectMenu.GetChoice~System.Int32")]
 [assembly: SuppressMessage("Interoperability", "CA1416:Validate platform compatibility", Justification = "<Pending>", Scope = "member", Target = "~M:TALOREAL_NETCORE_API.ConsoleAmountMenu.GetValues~System.Int32[]")]
+[assembly: SuppressMessage("Style", "IDE0042:Deconstruct variable declaration", Justification = "<Pending>", Scope = "member", Target = "~M:TALOREAL_NETCORE_API.Extensions.NextLong(System.Random,System.Int64,System.Int64)~System.Int64")]

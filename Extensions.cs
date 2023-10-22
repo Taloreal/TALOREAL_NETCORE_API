@@ -8,6 +8,8 @@ namespace TALOREAL_NETCORE_API {
 
     public static class Extensions {
 
+        #region Array Extensions
+
         /// <summary>
         /// Removes a specific index from an array and resizes the array.
         /// </summary>
@@ -31,32 +33,6 @@ namespace TALOREAL_NETCORE_API {
         }
 
         /// <summary>
-        /// Splits a string by another string.
-        /// Emulates the .net Core method. :)
-        /// </summary>
-        /// <param name="toSplit">The string to split.</param>
-        /// <param name="delimiter">The string to split by.</param>
-        /// <param name="strOps">Get rid of empty strings?</param>
-        /// <returns>The string split into an array of strings.</returns>
-        public static string[] Split(this string toSplit, string delimiter, StringSplitOptions strOps = StringSplitOptions.None) {
-            if (toSplit.Length < delimiter.Length) { return new string[] { toSplit }; }
-            List<string> entries = new();
-            string working = "";
-            for (int i = 0; i < toSplit.Length; i++) {
-                working += toSplit[i];
-                if (working.EndsWith(delimiter)) {
-                    entries.Add(working.Substring(0, working.Length - delimiter.Length));
-                    working = "";
-                }
-            }
-            if (working != "") { entries.Add(working); }
-            if (strOps == StringSplitOptions.RemoveEmptyEntries) {
-                entries.RemoveAll(s => string.IsNullOrEmpty(s));
-            }
-            return entries.ToArray();
-        }
-
-        /// <summary>
         /// Gets a subset array from another array.
         /// </summary>
         /// <typeparam name="T">The type of array.</typeparam>
@@ -74,27 +50,6 @@ namespace TALOREAL_NETCORE_API {
                 objs.Add(arr[pos]);
             }
             return objs.ToArray();
-        }
-
-        /// <summary>
-        /// Attempts to parse a bool from a string.
-        /// </summary>
-        /// <param name="str">The string to parse.</param>
-        /// <param name="result">The resulting bool.</param>
-        /// <returns>Did the parsing work?</returns>
-        public static bool TryParseBool(string str, out bool result) {
-            result = false;
-            str = str.ToLower();
-            if (string.IsNullOrEmpty(str)) { return false; }
-            if (str[0] == '0' || str.ToLower().StartsWith("false")) { return true; }
-            if (str[0] == '1' || str.ToLower().StartsWith("true")) {
-                result = true; return true;
-            }
-            if (str.StartsWith("no") || str == "n") { return true; }
-            if (str.StartsWith("yes") || str.StartsWith("yea") || str == "y") {
-                result = true; return true;
-            }
-            return false;
         }
 
         /// <summary>
@@ -120,7 +75,6 @@ namespace TALOREAL_NETCORE_API {
                 toDo(arr[i]);
             }
         }
-
 
         /// <summary>
         /// Performs a delegate for each element in an array.
@@ -213,11 +167,7 @@ namespace TALOREAL_NETCORE_API {
         /// <param name="predicate">The condition to use for to check for removal.</param>
         /// <returns>The new array, with the matching elements removed.</returns>
         public static T[] RemoveAllTrue<T>(this T[] arr, Predicate<T> predicate) {
-
-            bool opposite(T arg) { 
-                return predicate(arg) == false; 
-            }
-
+            bool opposite(T arg) { return predicate(arg) == false; }
             return RemoveAllFalse(arr, opposite);
         }
 
@@ -245,6 +195,89 @@ namespace TALOREAL_NETCORE_API {
         }
 
         /// <summary>
+        /// Checks if the array contains all of the elements of another array.
+        /// </summary>
+        /// <typeparam name="T">The type of arrays to work with.</typeparam>
+        /// <param name="array">The containing array to check.</param>
+        /// <param name="subset">The array of elements to check.</param>
+        /// <returns>True if all of subset is in the array.</returns>
+        public static bool ContainsArray<T>(this T?[] array, T?[] subset) {
+            if (array.Length < subset.Length) { return false; }
+
+            int first = 0, last = subset.Length - 1;
+            bool[] same = new bool[subset.Length];
+            for (int i = 0; i < array.Length; i++) {
+                for (int j = first; j <= last; j++) {
+                    bool s = array[i] == null && subset[j] == null;
+                    if (s == false && (array[i] == null || subset[j] == null)) { continue; }
+                    if (s == true || array[i]!.Equals(subset[j])) {
+                        same[j] = true;
+                        if (j == first) { first += 1; }
+                        if (j == last) { last -= 1; }
+                        break;
+                    }
+                }
+            }
+            for (int i = 0; i < same.Length; i++) {
+                if (same[i] == false) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        #endregion
+
+        #region String Parsing
+
+        /// <summary>
+        /// Splits a string by another string.
+        /// Emulates the .net Core method. :)
+        /// </summary>
+        /// <param name="toSplit">The string to split.</param>
+        /// <param name="delimiter">The string to split by.</param>
+        /// <param name="strOps">Get rid of empty strings?</param>
+        /// <returns>The string split into an array of strings.</returns>
+        public static string[] Split(this string toSplit, string delimiter, StringSplitOptions strOps = StringSplitOptions.None) {
+            if (toSplit.Length < delimiter.Length) { return new string[] { toSplit }; }
+            List<string> entries = new();
+            string working = "";
+            for (int i = 0; i < toSplit.Length; i++) {
+                working += toSplit[i];
+                if (working.EndsWith(delimiter)) {
+                    entries.Add(working.Substring(0, working.Length - delimiter.Length));
+                    working = "";
+                }
+            }
+            if (working != "") { entries.Add(working); }
+            if (strOps == StringSplitOptions.RemoveEmptyEntries) {
+                entries.RemoveAll(s => string.IsNullOrEmpty(s));
+            }
+            return entries.ToArray();
+        }
+
+        /// <summary>
+        /// Attempts to parse a bool from a string.
+        /// </summary>
+        /// <param name="str">The string to parse.</param>
+        /// <param name="result">The resulting bool.</param>
+        /// <returns>Did the parsing work?</returns>
+        public static bool TryParseBool(string str, out bool result) {
+            result = false;
+            str = str.ToLower();
+            if (string.IsNullOrEmpty(str)) { return false; }
+            if (str[0] == '0' || str.ToLower().StartsWith("false")) { return true; }
+            if (str[0] == '1' || str.ToLower().StartsWith("true")) {
+                result = true; return true;
+            }
+            if (str.StartsWith("no") || str == "n") { return true; }
+            if (str.StartsWith("yes") || str.StartsWith("yea") || str == "y") {
+                result = true; return true;
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Filters a string based on what characters are allowed.
         /// </summary>
         /// <param name="original">The string to filter.</param>
@@ -260,6 +293,10 @@ namespace TALOREAL_NETCORE_API {
             }
             return filtered;
         }
+
+        #endregion
+
+        #region Byte Array Extensions
 
         /// <summary>
         /// Left shifts the bits in a byte array continuously.
@@ -307,6 +344,171 @@ namespace TALOREAL_NETCORE_API {
             return binary;
         }
 
+        #endregion
+
+        #region Randomness Extensions
+
+        /// <summary>
+        /// Gets a random bool, true or false.
+        /// </summary>
+        /// <param name="rand">The Randomizing object.</param>
+        /// <returns>The random bool.</returns>
+        public static bool NextBool(this Random rand) {
+            return rand.Next(0, 2) == 1;
+        }
+
+        /// <summary>
+        /// Gets a random byte (0-256).
+        /// </summary>
+        /// <param name="rand">The Randomizing object.</param>
+        /// <returns>The random byte.</returns>
+        public static byte NextByte(this Random rand) {
+            return (byte)rand.Next(0, 256);
+        }
+
+        /// <summary>
+        /// Gets a random byte between a inclusive lower and exclused upper bounds.
+        /// </summary>
+        /// <param name="rand">The Randomizing object.</param>
+        /// <param name="min">The inclusive lower bounds.</param>
+        /// <param name="max">The excluded upper bounds.</param>
+        /// <returns>The random byte.</returns>
+        public static byte NextByte(this Random rand, byte min, byte max) {
+            if (min == max) { return min; }
+            if (min > max) {
+                (min, max) = (max, min);
+            }
+            return (byte)rand.Next(min, max);
+        }
+
+        /// <summary>
+        /// Gets a random short (2 byte integer).
+        /// </summary>
+        /// <param name="rand">The Randomizing object.</param>
+        /// <returns>The random short.</returns>
+        public static short NextShort(this Random rand) {
+            return (short)rand.Next(short.MinValue, short.MaxValue);
+        }
+
+        /// <summary>
+        /// Gets a random short (2 byte integer) between an inclusive lower bounds and excluded upper bounds.
+        /// </summary>
+        /// <param name="rand">The Randomizing object.</param>
+        /// <param name="min">The inclusive lower bounds.</param>
+        /// <param name="max">The excluded upper bounds.</param>
+        /// <returns>The random short.</returns>
+        public static short NextShort(this Random rand, short min, short max) {
+            if (min == max) { return min; }
+            if (min > max) {
+                (min, max) = (max, min);
+            }
+            return (short)rand.Next(min, max);
+        }
+
+        /// <summary>
+        /// Generates a random Long (8 byte integer).
+        /// </summary>
+        /// <param name="rand">The Randomizing object.</param>
+        /// <param name="allowNegatives">Should negative numbers be generated?</param>
+        /// <returns>The random long.</returns>
+        public static long NextLong(this Random rand, bool allowNegatives = false) {
+            byte[] bytes = new byte[8];
+            rand.NextBytes(bytes);
+            
+            long val = BitConverter.ToInt64(bytes);
+            if (allowNegatives == false) { 
+                val = val == long.MinValue ? 0 : val;
+                val = val < 0 ? val * -1 : val;
+            }
+            return val;
+        }
+
+        /// <summary>
+        /// Generates a random Long (8 byte integer) between an inclusive lower bounds and excluded upper bounds.
+        /// </summary>
+        /// <param name="rand">The Randomizing object.</param>
+        /// <param name="min">The inclusive lower bounds.</param>
+        /// <param name="max">The excluded upper bounds.</param>
+        /// <returns>The random long.</returns>
+        public static long NextLong(this Random rand, long min, long max) {
+            if (min == max) { return min; }
+            if (min > max) { 
+                (min, max) = (max, min); 
+            }
+            (int upper, int lower) maximum = ((int)(max / int.MaxValue), (int)(max % int.MaxValue));
+            (int upper, int lower) minimum = ((int)(min / int.MaxValue), (int)(min % int.MaxValue));
+            (int upper, int lower) random = (rand.Next(minimum.upper, maximum.upper), rand.Next(minimum.lower, maximum.lower));
+            long rn = ((long)random.upper << 31) + random.lower;
+            return rn;
+        }
+
+        /// <summary>
+        /// Generates a random double between an inclusive minimum and an excluded maximum.
+        /// </summary>
+        /// <param name="rand">The Randomizing object.</param>
+        /// <param name="min">The inclusive lower bounds.</param>
+        /// <param name="max">The excluded upper bounds.</param>
+        /// <returns>The random double.</returns>
+        public static double NextDouble(this Random rand, double min, double max) {
+            if (min == max) { return min; }
+            if (min > max) {
+                (min, max) = (max, min);
+            }
+            return (rand.NextDouble() * (max - min)) + min;
+        }
+
+        /// <summary>
+        /// Generates a random float.
+        /// </summary>
+        /// <param name="rand">The Randomizing object.</param>
+        /// <returns>The random float.</returns>
+        public static float NextFloat(this Random rand) {
+            byte[] bytes = new byte[4];
+            rand.NextBytes(bytes);
+            return BitConverter.ToSingle(bytes);
+        }
+
+        /// <summary>
+        /// Generates a random float between an inclusive minimum and an excluded maximum.
+        /// </summary>
+        /// <param name="rand">The Randomizing object.</param>
+        /// <param name="min">The inclusive lower bounds.</param>
+        /// <param name="max">The excluded upper bounds.</param>
+        /// <returns>The random float.</returns>
+        public static float NextFloat(this Random rand, float min, float max) {
+            return (float)rand.NextDouble(min, max);
+        }
+
+        /// <summary>
+        /// Generates a random DateTime.
+        /// </summary>
+        /// <param name="rand">The Randomizing object.</param>
+        /// <returns>The random DateTime.</returns>
+        public static DateTime NextDateTime(this Random rand) {
+            return rand.NextDateTime(DateTime.MinValue, DateTime.MaxValue);
+        }
+
+        /// <summary>
+        /// Generates a random DateTime between an inclusive minimum and an excluded maximum.
+        /// </summary>
+        /// <param name="rand">The Randomizing object.</param>
+        /// <param name="min">The inclusive lower bounds.</param>
+        /// <param name="max">The excluded upper bounds.</param>
+        /// <returns>The random DateTime.</returns>
+        public static DateTime NextDateTime(this Random rand, DateTime min, DateTime max) {
+            if (min == max) { return min; }
+            if (min > max) {
+                (min, max) = (max, min);
+            }
+            TimeSpan span = max - min;
+            long val = rand.NextLong(0, span.Ticks);
+            return min.AddTicks(val);
+        }
+
+        #endregion
+
+        #region List Extensions
+
         /// <summary>
         /// Finds the 0 based indexs of all elements of a list that match a predicate.
         /// </summary>
@@ -324,36 +526,7 @@ namespace TALOREAL_NETCORE_API {
             return ndxs;
         }
 
-        /// <summary>
-        /// Checks if the array contains all of the elements of another array.
-        /// </summary>
-        /// <typeparam name="T">The type of arrays to work with.</typeparam>
-        /// <param name="array">The containing array to check.</param>
-        /// <param name="subset">The array of elements to check.</param>
-        /// <returns>True if all of subset is in the array.</returns>
-        public static bool ContainsArray<T>(this T?[] array, T?[] subset) { 
-            if (array.Length < subset.Length) { return false; }
+        #endregion
 
-            int first = 0, last = subset.Length - 1;
-            bool[] same = new bool[subset.Length];
-            for (int i = 0; i < array.Length; i++) { 
-                for (int j = first; j <= last; j++) {
-                    bool s = array[i] == null && subset[j] == null;
-                    if (s == false && (array[i] == null || subset[j] == null)) { continue; }
-                    if (s == true || array[i]!.Equals(subset[j])) { 
-                        same[j] = true;
-                        if (j == first) { first += 1; }
-                        if (j == last) { last -= 1; }
-                        break;
-                    }
-                }
-            }
-            for (int i = 0; i < same.Length; i++) { 
-                if (same[i] == false) { 
-                    return false; 
-                }
-            }
-            return true;
-        }
     }
 }
