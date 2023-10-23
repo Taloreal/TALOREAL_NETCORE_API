@@ -19,7 +19,7 @@ namespace TALOREAL_NETCORE_API {
         /// <summary>
         /// A string key/value database.
         /// </summary>
-        private static SerializableDictionary<string, string> Database = new();
+        private static readonly SerializableDictionary<string, string> Database = new();
 
         /// <summary>
         /// Events that occur when a value in Database changes.
@@ -86,18 +86,42 @@ namespace TALOREAL_NETCORE_API {
         /// <returns>A value determining success/failure.</returns>
         public static bool LoadSettings() {
             Clear(false);
+            // NEW IMPLEMENTATION
             try {
-                TextReader reader = new StreamReader(File.Open(@"Settings.TAL", FileMode.Open));
-                try {
-                    XmlSerializer serializer = new(typeof(SerializableDictionary<string, string>));
-                    Database = (SerializableDictionary<string, string>?)
-                        serializer.Deserialize(reader) ?? throw new NullReferenceException("ERROR: Database deserialized to null.");
-                    reader.Close();
+                byte[] fileBuffer = File.ReadAllBytes("Settings.TAL");
+                int fileLength = fileBuffer.Length;
+                if (fileLength > 4) {
+                    bool success = true;
+                    string key = "", value = "";
+                    int index = 0, count = 0, keySize = 0, valueSize = 0;
+                    success = success && fileBuffer.ReadIntFromBytes(ref index, out count);
+                    for (int i = 0; i < count; i++) {
+                        success = success && fileBuffer.ReadIntFromBytes(ref index, out keySize);
+                        success = success && fileBuffer.ReadIntFromBytes(ref index, out valueSize);
+                        success = success && fileBuffer.ReadStringFromBytes(ref index, keySize, out key);
+                        success = success && fileBuffer.ReadStringFromBytes(ref index, valueSize, out value);
+                        if (success == true) {
+                            Database.Add(key, value);
+                            continue;
+                        }
+                        throw new Exception("ERROR: File format error.\r\n\t"
+                            + "file_length = " + fileLength + "\r\n\t, "
+                            + "file_index = " + index + "\r\n\t, "
+                            + "count = " + count + "\r\n\t, "
+                            + "index = " + i + "\r\n\t, "
+                            + "keySize = " + keySize + "\r\n\t, "
+                            + "valuSize = " + valueSize + "\r\n\t, "
+                            + "key = " + key + "\r\n\t, "
+                            + "value = " + value);
+                    }
                     return true;
                 }
-                catch { reader.Close(); return false; }
             }
-            catch { return false; }
+            catch {
+#warning "Need log file implementation"
+                // TODO: Implement a log file for the exception.
+            }
+            return false;
         }
 
         /// <summary>
@@ -105,21 +129,28 @@ namespace TALOREAL_NETCORE_API {
         /// </summary>
         /// <returns>A value determining success/failure.</returns>
         public static bool SaveSettings() {
+            // NEW IMPLEMENTATION
             try {
-                TextWriter writer = new StreamWriter(File.Open(@"temp.TAL", FileMode.OpenOrCreate));
-                try {
-                    XmlSerializer serializer = new(typeof(SerializableDictionary<string, string>));
-                    serializer.Serialize(writer, Database);
-                    writer.Close();
-                    if (File.Exists("Settings.TAL")) {
-                        File.Delete("Settings.TAL");
-                    }
-                    File.Move("temp.TAL", "Settings.TAL");
-                    return true;
+                BinaryWriter bw = new(File.Create("temp.TAL"));
+                bw.Write(Database.Count);
+                foreach (KeyValuePair<string, string> entry in Database) {
+                    bw.Write(entry.Key.Length);
+                    bw.Write(entry.Value.Length);
+                    bw.Write(entry.Key.GetBytes());
+                    bw.Write(entry.Value.GetBytes());
                 }
-                catch { writer.Close(); return false; }
+                bw.Close();
+                if (File.Exists("Settings.TAL")) {
+                    File.Delete("Settings.TAL");
+                }
+                File.Move("temp.TAL", "Settings.TAL");
+                return true;
             }
-            catch { return false; }
+            catch {
+#warning "Need log file implementation"
+                // TODO: Implement a log file for the exception.
+            }
+            return false;
         }
 
         /// <summary>
