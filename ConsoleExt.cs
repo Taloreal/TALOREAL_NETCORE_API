@@ -17,7 +17,7 @@ namespace TALOREAL_NETCORE_API {
         /// </summary>
         private readonly static Dictionary<Type, Parser> Converter = new() {
             { typeof(string),   (string s, out bool p) => { p = true; return s; } },
-            { typeof(bool),     (string s, out bool p) => { p = Extensions.TryParseBool(s, out bool val); return val; } },
+            { typeof(bool),     (string s, out bool p) => { p = UtilityExtensions.TryParseBool(s, out bool val); return val; } },
             { typeof(byte),     (string s, out bool p) => { p = byte.TryParse(s, out byte val); return val; } },
             { typeof(short),    (string s, out bool p) => { p = short.TryParse(s, out short val); return val; } },
             { typeof(int),      (string s, out bool p) => { p = int.TryParse(s, out int val); return val; } },

@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using System;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 
 namespace TALOREAL_NETCORE_API {
@@ -7,9 +8,29 @@ namespace TALOREAL_NETCORE_API {
         Forward, Backward
     }
 
-    public static class Extensions {
+    public enum LinkedListSide { 
+        Front, Back
+    }
+
+    public static class UtilityExtensions {
 
         #region Array Extensions
+
+        /// <summary>
+        /// Serves as a one stop function to get all of type T items from the array.
+        /// </summary>
+        /// <typeparam name="T">The type to get all items of.</typeparam>
+        /// <param name="arr">The array to get the items from.</param>
+        /// <returns>A traditionally typed T[] array with indexers.</returns>
+        public static T[] AsTypedArray<T>(this Array arr) {
+            List<T> asList = new();
+            foreach (object? item in arr) {
+                if (item is T t && item != null) { 
+                    asList.Add(t);
+                }
+            }
+            return asList.ToArray();
+        }
 
         /// <summary>
         /// Removes a specific index from an array and resizes the array.
@@ -225,6 +246,99 @@ namespace TALOREAL_NETCORE_API {
                 }
             }
             return true;
+        }
+
+        /// <summary>
+        /// Takes a 2D (rectangular) array and turns it into a 1D array.
+        /// </summary>
+        /// <typeparam name="T">The type of elements in the array.</typeparam>
+        /// <param name="arr">The array to transform into a 1D array.</param>
+        /// <returns>The resulting 1D array.</returns>
+        public static T[] To1DArray<T>(this T[,] arr) =>
+            (T[])((Array2DMask<T>)(arr));
+
+        /// <summary>
+        /// Takes a 1D array and turns it into a 2D (rectangular) array.
+        /// Caution, will take as long as it would moving each element one at a time.
+        /// </summary>
+        /// <typeparam name="T">The type of elements in the array.</typeparam>
+        /// <param name="arr">The array to transform into a 2D array.</param>
+        /// <param name="width">The width of the 2D array.</param>
+        /// <param name="height">The height of the 2D array.</param>
+        /// <returns>The resulting 2D array.</returns>
+        public static T[,] To2DArray<T>(this T[] arr, int width, int height) =>
+            (T[,])((Array2DMask<T>)(arr, width, height));
+
+
+        /// <summary>
+        /// Checks if a position is within the bounds of an array.
+        /// </summary>
+        /// <typeparam name="T">The type of elements in the array.</typeparam>
+        /// <param name="array">The array to access.</param>
+        /// <param name="position">The position at which to check.</param>
+        /// <returns>True if the position is within the array's bounds.</returns>
+        public static bool IsInBounds<T>(this T[,] array, (int x, int y) position) {
+            var (min, max) = array.GetBounds();
+            return position.x >= min.x && position.x < max.x &&
+                position.y >= min.y && position.y < max.y;
+        }
+
+        /// <summary>
+        /// Checks if a position is within the bounds of an array.
+        /// </summary>
+        /// <typeparam name="T">The type of elements in the array.</typeparam>
+        /// <param name="array">The array to access.</param>
+        /// <param name="position">The position at which to check.</param>
+        /// <returns>True if the position is within the array's bounds.</returns>
+        public static bool IsInBounds<T>(this T[] array, int position) => position >= 0 && position < array.Length;
+
+        /// <summary>
+        /// Gets the lower and upper bounds of the array.
+        /// </summary>
+        /// <typeparam name="T">The type of elements in the array.</typeparam>
+        /// <param name="array">The array to access.</param>
+        /// <returns>((0, 0), (array.GetLength(0), array.GetLength(1)))</returns>
+        public static ((int x, int y) min, (int x, int y) max) GetBounds<T>(this T[,] array) =>
+            ((0, 0), (array.GetLength(0), array.GetLength(1)));
+
+        /// <summary>
+        /// Gets the lower and upper bounds of the array.
+        /// </summary>
+        /// <typeparam name="T">The type of elements in the array.</typeparam>
+        /// <param name="array">The array to access.</param>
+        /// <returns>(0, array.Length)</returns>
+        public static (int min, int max) GetBounds<T>(this T[] array) => (0, array.Length);
+
+        /// <summary>
+        /// Tries to set the element at position to a new value.
+        /// </summary>
+        /// <typeparam name="T">The type of element to set.</typeparam>
+        /// <param name="array">The array to access.</param>
+        /// <param name="position">The position at which to change.</param>
+        /// <param name="value">The new value to set in the array.</param>
+        /// <returns>True if the position's element was updated.</returns>
+        public static bool TrySetValue<T>(this T[,] array, (int x, int y) position, T value) {
+            if (array.IsInBounds(position)) {
+                array[position.x, position.y] = value;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Tries to set the element at position to a new value.
+        /// </summary>
+        /// <typeparam name="T">The type of element to set.</typeparam>
+        /// <param name="array">The array to access.</param>
+        /// <param name="position">The position at which to change.</param>
+        /// <param name="value">The new value to set in the array.</param>
+        /// <returns>True if the position's element was updated.</returns>
+        public static bool TrySetValue<T>(this T[] array, int position, T value) {
+            if (array.IsInBounds(position)) {
+                array[position] = value;
+                return true;
+            }
+            return false;
         }
 
         #endregion
@@ -608,6 +722,135 @@ namespace TALOREAL_NETCORE_API {
             return ndxs;
         }
 
+        #endregion
+
+        #region Misc. Interative Extensions
+
+        /// <summary>
+        /// Does a specified action a specified number of times.
+        /// </summary>
+        /// <param name="interations">The number of times to repeat the action.</param>
+        /// <param name="toDo">The action to repeat.</param>
+        public static void For(this int interations, Action<int> toDo) { 
+            for (int i = 0; i < interations; i++) {
+                toDo(i);
+            }
+        }
+
+        /// <summary>
+        /// Adds an array of elements to the Queue.
+        /// </summary>
+        /// <typeparam name="T">The type of elements to add and that are in the queue.</typeparam>
+        /// <param name="queue">The queue to add to.</param>
+        /// <param name="toAdd">The elements to add.</param>
+        public static void AddRange<T>(this Queue<T> queue, T[] toAdd) { 
+            toAdd.ForEach(o => queue.Enqueue(o));
+        }
+
+        /// <summary>
+        /// Adds an array of elements to the stack.
+        /// </summary>
+        /// <typeparam name="T">The type of elements to add and that are in the stck.</typeparam>
+        /// <param name="stack">The stack to add to.</param>
+        /// <param name="toAdd">The elements to add.</param>
+        public static void AddRange<T>(this Stack<T> stack, T[] toAdd) { 
+            toAdd.ForEach(o => stack.Push(o));
+        }
+
+        /// <summary>
+        /// Adds an array of elements to the linked list.
+        /// </summary>
+        /// <typeparam name="T">The type of elements to add and that are in the linked list.</typeparam>
+        /// <param name="span">The linked list to add to.</param>
+        /// <param name="toAdd">The elements to add.</param>
+        /// <param name="side">The side of the linked list to add to, front or back.</param>
+        public static void AddRange<T>(this LinkedList<T> span, T[] toAdd, LinkedListSide side) { 
+            Action<T> 
+                addfront = (o => span.AddFirst(o)), 
+                addback  = (o => span.AddLast(o));
+            toAdd.ForEach(o => (side == LinkedListSide.Front ? addfront : addback)(o));
+        }
+
+        /// <summary>
+        /// Gets a node from the linked list at a specific index.
+        /// </summary>
+        /// <typeparam name="T">The type of elements in the linked list.</typeparam>
+        /// <param name="span">The linked list to access.</param>
+        /// <param name="index">The index to get the node at.</param>
+        /// <returns>The node at the specified index.</returns>
+        /// <exception cref="InvalidOperationException">The linked list is empty.</exception>
+        /// <exception cref="IndexOutOfRangeException">Can't access members beyond the bounds of the linked list.</exception>
+        /// <exception cref="NullReferenceException">The returned node is null.</exception>
+        public static LinkedListNode<T> GetNodeAt<T>(this LinkedList<T> span, int index) {
+            if (span.Count == 0) {
+                throw new InvalidOperationException("ERROR: Can not get a node of an empty LinkedList.");
+            }
+            if (index < 0 || index >= span.Count) {
+                throw new IndexOutOfRangeException("ERROR: Invalid index specified.");
+            }
+            int ndx = 0;
+            LinkedListNode<T>? searchNode = span.First;
+            while (ndx != index) {
+                searchNode = searchNode?.Next;
+                ndx++;
+            }
+            if (searchNode == null) {
+                throw new NullReferenceException("ERROR: Invalid node returned.");
+            }
+            return searchNode;
+        }
+
+        /// <summary>
+        /// Gets an array of elements from the linked list ranging from the specified index to the count.
+        /// </summary>
+        /// <typeparam name="T">The type of elements in the linked list.</typeparam>
+        /// <param name="span">The linked list to access.</param>
+        /// <param name="start">The index at which to start grabbing elements in the linked list.</param>
+        /// <param name="count">The number of elements to grab.</param>
+        /// <returns>An array of elements from the linked list.</returns>
+        /// <exception cref="InvalidOperationException">The linked list is empty.</exception>
+        /// <exception cref="IndexOutOfRangeException">Can't access members beyond the bounds of the linked list.</exception>
+        /// <exception cref="NullReferenceException">Attempted to go beyond the linked list.</exception>
+        public static T[] GetRange<T>(this LinkedList<T> span, int start, int count) {
+            if (span.Count == 0) {
+                throw new InvalidOperationException("ERROR: Can not get items of an empty LinkedList.");
+            }
+            if (start < 0 || (start + count) >= span.Count) {
+                throw new IndexOutOfRangeException("ERROR: Invalid index range specified.");
+            }
+            int ndx = 0;
+            T[] result = new T[count];
+            LinkedListNode<T> searchNode = span.GetNodeAt(start);
+            while (ndx < count) {
+                result[ndx] = searchNode.Value;
+                if ((ndx + 1) < count) {
+                    if (searchNode.Next == null) {
+                        throw new NullReferenceException("ERROR: Invalid node encountered.");
+                    }
+                    searchNode = searchNode.Next;
+                    ndx += 1;
+                }
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Removes all values from a linked list that return true in a given predicate.
+        /// </summary>
+        /// <typeparam name="T">The type of elements in the linked list.</typeparam>
+        /// <param name="span">The linked list to access.</param>
+        /// <param name="conditional">The predicate to test each element against.</param>
+        public static void RemoveAll<T>(this LinkedList<T> span, Predicate<T> conditional) {
+            if (span.Count > 0 && span.First != null) {
+                LinkedListNode<T> searchNode = span.First;
+                while (searchNode.Next != null) { 
+                    while (searchNode.Next != null && conditional(searchNode.Next.Value) == true) {
+                        span.Remove(searchNode.Next);
+                    }
+                    searchNode = searchNode.Next ?? searchNode;
+                }
+            }
+        }
         #endregion
 
     }
