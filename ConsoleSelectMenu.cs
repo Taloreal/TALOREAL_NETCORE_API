@@ -124,8 +124,15 @@ namespace TALOREAL_NETCORE_API {
                     if (heartbeat >= MaxPulses) { continue; }
 
                     key = Console.ReadKey(true);
-                    if (key.Key == ConsoleKey.UpArrow) { Selected = Math.Max(0, Selected - 1); }
-                    if (key.Key == ConsoleKey.DownArrow) { Selected = Math.Min(Choices.Count - 1, Selected + 1); }
+                    if (key.Key == ConsoleKey.UpArrow) { 
+                        Selected = Math.Max(0, Selected - 1); 
+                    }
+                    if (key.Key == ConsoleKey.DownArrow) { 
+                        Selected = Math.Min(Choices.Count - 1, Selected + 1); 
+                    }
+                    if (key.Key != ConsoleKey.UpArrow && key.Key != ConsoleKey.DownArrow) {
+                        Choices[Selected].ProcessKey(key);
+                    }
                     if (key.Key == ConsoleKey.Enter) {
                         chosen = true;
                         Choices[Selected].OnSelect();
@@ -147,7 +154,7 @@ namespace TALOREAL_NETCORE_API {
         private void DisplayMenu() {
             // clear the console if needed
             if (ClearConsole) { 
-                Console.Clear(); 
+                ConsoleExt.TryClear();
             }
 
             OnDrawMenu?.Invoke(this);

@@ -158,10 +158,10 @@ namespace TALOREAL_NETCORE_API {
         /// </summary>
         /// <param name="keyname">The keyname to check.</param>
         /// <param name="type">The desired value type.</param>
-        /// <param name="KEY">The needed StrTyp_Key string needed for the database.</param>
+        /// <param name="KEY">The needed StringTypeKey string needed for the database.</param>
         /// <returns>A value determining if the key/type is in the database.</returns>
         private static bool IsGoodKey(string keyname, Type type, out string KEY) {
-            KEY = StrTyp_Key.Get_STKCode(keyname, type);
+            KEY = StringTypeKey.GetSettingsKeyCode(keyname, type);
             return Converter.ContainsKey(type)
                 && Database.ContainsKey(KEY);
         }
@@ -195,7 +195,7 @@ namespace TALOREAL_NETCORE_API {
             bool nullptr = key == null || key == "";
             bool noConvert = !Converter.ContainsKey(typeof(T));
             if (nullptr || noConvert) { return false; }
-            string STKey = StrTyp_Key.Get_STKCode(key!, typeof(T));
+            string STKey = StringTypeKey.GetSettingsKeyCode(key!, typeof(T));
             if (onChange != null) { ListenTo<T>(key!, onChange); }
 
             bool inDatabase = GetValue<T>(key!, out T? old);
@@ -217,7 +217,7 @@ namespace TALOREAL_NETCORE_API {
         /// <param name="key">The key of the value to be monitored.</param>
         /// <param name="onChange">The method to call when change happens.</param>
         public static void ListenTo<T>(string key, Listener onChange) {
-            string STKey = StrTyp_Key.Get_STKCode(key, typeof(T));
+            string STKey = StringTypeKey.GetSettingsKeyCode(key, typeof(T));
             if (OnChanged.TryAdd(STKey, onChange) == false) {
                 OnChanged[STKey] += onChange;
             }
@@ -235,7 +235,7 @@ namespace TALOREAL_NETCORE_API {
         /// <param name="key">The key to stop listening to.</param>
         /// <param name="onChange">The method to unsubscribe.</param>
         public static void Mute<T>(string key, Listener onChange) {
-            string STKey = StrTyp_Key.Get_STKCode(key, typeof(T));
+            string STKey = StringTypeKey.GetSettingsKeyCode(key, typeof(T));
             if (!OnChanged.ContainsKey(STKey)) { return; }
             OnChanged[STKey] -= onChange;
             if (OnChanged[STKey] == null) { 

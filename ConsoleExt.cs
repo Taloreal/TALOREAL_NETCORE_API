@@ -246,6 +246,19 @@ namespace TALOREAL_NETCORE_API {
         }
 
         /// <summary>
+        /// Clears the console screen, guarding against Console.Clear() throwing when output
+        /// is redirected to a pipe or file (there is no console buffer to clear in that case).
+        /// </summary>
+        public static void TryClear() {
+            if (Console.IsOutputRedirected == false) {
+                try {
+                    Console.Clear();
+                }
+                catch (IOException) { }
+            }
+        }
+
+        /// <summary>
         /// Writes a prompt onto the console at a specific location and then reset the cursor position back to where it was.
         /// </summary>
         /// <param name="prompt">The prompt to display.</param>
