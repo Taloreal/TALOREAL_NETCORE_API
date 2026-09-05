@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace TALOREAL_NETCORE_API {
 
-    public class ConsoleAmountMenuItem : ConsoleMenuItem {
+    public class ConsoleAmountMenuItem(string text) : ConsoleMenuItem(text) {
 
         public int Minimum { get; private set; } = 0;
 
@@ -22,9 +22,6 @@ namespace TALOREAL_NETCORE_API {
                 _Value = value;
             }
         }
-
-
-        public ConsoleAmountMenuItem(string text) : base(text) { }
 
         public ConsoleAmountMenuItem SetValidRange(int min, int max, int defaultValue = 0) {
             if (min > max) {

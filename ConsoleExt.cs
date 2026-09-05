@@ -1,4 +1,5 @@
-﻿using System.Drawing;
+using System.Drawing;
+using System.Text;
 
 namespace TALOREAL_NETCORE_API {
 
@@ -37,79 +38,79 @@ namespace TALOREAL_NETCORE_API {
         private readonly static Dictionary<Type, Ranged> InsideOf = new() {
 
             { typeof(string), (o, min, max) => {
-                if (!IsType<int>(new object[]{ min, max })) { return false; }
+                if (!IsType<int>([min, max])) { return false; }
                 if (o.GetType() != typeof(string)) { return false; }
                 string val = (string)o;
                 return  val.Length >= (int)min && val.Length <= (int)max;
             } },
 
             { typeof(bool), (o, min, max) => {
-                if (!IsType<bool>(new object[]{ o })) { return false; }
+                if (!IsType<bool>([o])) { return false; }
                 return true;
             } },
 
             { typeof(byte), (o, min, max) => {
-                if (!IsType<byte>(new object[]{ o, min, max })) { return false; }
+                if (!IsType<byte>([o, min, max])) { return false; }
                 byte val = (byte)o;
                 return val >= (byte)min && val <= (byte)max;
             } },
 
             { typeof(short), (o, min, max) => {
-                if (!IsType<short>(new object[]{ o, min, max })) { return false; }
+                if (!IsType<short>([o, min, max])) { return false; }
                 short val = (short)o;
                 return val >= (short)min && val <= (short)max;
             } },
 
             { typeof(int), (o, min, max) => {
-                if (!IsType<int>(new object[]{ o, min, max })) { return false; }
+                if (!IsType<int>([o, min, max])) { return false; }
                 int val = (int)o;
                 return val >= (int)min && val <= (int)max;
             } },
 
             { typeof(long), (o, min, max) => {
-                if (!IsType<long>(new object[]{ o, min, max })) { return false; }
+                if (!IsType<long>([o, min, max])) { return false; }
                 long val = (long)o;
                 return val >= (long)min && val <= (long)max;
             } },
 
             { typeof(double), (o, min, max) => {
-                if (!IsType<double>(new object[]{ o, min, max })) { return false; }
+                if (!IsType<double>([o, min, max])) { return false; }
                 double val = (double)o;
                 return val >= (double)min && val <= (double)max;
             } },
 
             { typeof(float), (o, min, max) => {
-                if (!IsType<float>(new object[]{ o, min, max })) { return false; }
+                if (!IsType<float>([o, min, max])) { return false; }
                 float val = (float)o;
                 return val >= (float)min && val <= (float)max;
             } },
 
             { typeof(sbyte), (o, min, max) => {
-                if (!IsType<sbyte>(new object[]{ o, min, max })) { return false; }
+                if (!IsType<sbyte>([o, min, max])) { return false; }
                 sbyte val = (sbyte)o;
                 return val >= (sbyte)min && val <= (sbyte)max;
             } },
 
             { typeof(ushort), (o, min, max) => {
-                if (!IsType<ushort>(new object[]{ o, min, max })) { return false; }
+                if (!IsType<ushort>([o, min, max])) { return false; }
                 ushort val = (ushort)o;
                 return val >= (ushort)min && val <= (ushort)max;
             } },
 
             { typeof(uint), (o, min, max) => {
-                if (!IsType<uint>(new object[]{ o, min, max })) { return false; }
+                if (!IsType<uint>([o, min, max])) { return false; }
                 uint val = (uint)o;
                 return val >= (uint)min && val <= (uint)max;
             } },
 
             { typeof(ulong), (o, min, max) => {
-                if (!IsType<ulong>(new object[]{ o, min, max })) { return false; }
+                if (!IsType<ulong>([o, min, max])) { return false; }
                 ulong val = (ulong)o;
                 return val >= (ulong)min && val <= (ulong)max;
             } },
 
             { typeof(DateTime), (o, min, max) => {
-                if (!IsType<DateTime>(new object[]{ o, min, max })) { return false; }
+                if (!IsType<DateTime>([o, min, max])) { return false; }
                 DateTime val = (DateTime)o;
                 return val >= (DateTime)min && val <= (DateTime)max;
             } },
@@ -185,6 +186,56 @@ namespace TALOREAL_NETCORE_API {
         }
 
         /// <summary>
+        /// Displays a prompt with an editable pre-filled initial value and waits for user input.
+        /// Backspace removes from the end of the buffer; typing appends to the end.
+        /// </summary>
+        /// <param name="prompt">The prompt to display.</param>
+        /// <param name="initial">The initial, editable text shown after the prompt.</param>
+        /// <returns>The user's (possibly edited) input.</returns>
+        public static string ReadLineWithInitial(string prompt, string initial) {
+            Console.Write(prompt);
+            Console.Write(initial);
+            StringBuilder buffer = new(initial);
+            while (true) {
+                ConsoleKeyInfo key = Console.ReadKey(true);
+                if (key.Key == ConsoleKey.Enter) {
+                    Console.WriteLine();
+                    return buffer.ToString();
+                }
+                if (key.Key == ConsoleKey.Backspace) {
+                    if (buffer.Length > 0) {
+                        char removed = buffer[^1];
+                        buffer.Remove(buffer.Length - 1, 1);
+                        // a full-width character (CJK text, "「」" brackets, etc.) occupies
+                        // two screen columns but is still exactly one char removed from the
+                        // buffer - erasing only one column ("\b \b") leaves half the glyph
+                        // on screen, so what the operator sees stops matching what is
+                        // actually left in the buffer as they keep backspacing through it.
+                        Console.Write(IsWideChar(removed) ? "\b\b  \b\b" : "\b \b");
+                    }
+                    continue;
+                }
+                if (key.KeyChar != '\0' && char.IsControl(key.KeyChar) == false) {
+                    buffer.Append(key.KeyChar);
+                    Console.Write(key.KeyChar);
+                }
+            }
+        }
+
+        /// <summary>True for a char that renders two columns wide in a monospace console (CJK script, fullwidth forms, Hangul) rather than one.</summary>
+        private static bool IsWideChar(char c) =>
+            (c >= 'ᄀ' && c <= 'ᇿ')   // Hangul Jamo
+            || (c >= '⺀' && c <= '〾') // CJK radicals, symbols/punctuation (incl. 「」、。)
+            || (c >= 'ぁ' && c <= '㏿') // Hiragana, Katakana, CJK compat
+            || (c >= '㐀' && c <= '䶿') // CJK unified ideographs extension A
+            || (c >= '一' && c <= '鿿') // CJK unified ideographs
+            || (c >= 'ꥠ' && c <= '꥿') // Hangul Jamo extended-A
+            || (c >= '가' && c <= '힣') // Hangul syllables
+            || (c >= '豈' && c <= '﫿') // CJK compatibility ideographs
+            || (c >= '＀' && c <= '｠') // fullwidth forms
+            || (c >= '￠' && c <= '￦'); // fullwidth signs
+
+        /// <summary>
         /// Writes a prompt to the screen either with a new line or not.
         /// </summary>
         /// <param name="prompt">The prompt to display.</param>
@@ -200,9 +251,9 @@ namespace TALOREAL_NETCORE_API {
         /// <param name="prompt">The prompt to display.</param>
         /// <param name="pos">The position to print the prompt.</param>
         /// <param name="lined">Should a newline character be printed as well?</param>
-        public static void WriteAtPosition(string prompt, (int x, int y) pos, bool lined = false) {
+        public static void WriteAtPosition(string prompt, Point pos, bool lined = false) {
             var (left, top) = Console.GetCursorPosition();
-            Console.SetCursorPosition(pos.x, pos.y);
+            Console.SetCursorPosition(pos.X, pos.Y);
             Write(prompt, lined);
             Console.SetCursorPosition(left, top);
         }

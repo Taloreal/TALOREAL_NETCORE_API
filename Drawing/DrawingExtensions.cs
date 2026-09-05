@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Linq;
+using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
@@ -52,6 +53,18 @@ namespace TALOREAL_NETCORE_API.Drawing {
         public static (byte a, byte r, byte g, byte b) GetPixelColors(this uint color) => 
             ((byte)(color >> 24), (byte)(color >> 16 & 0xff),
                 (byte)(color >> 8 & 0xff), (byte)(color & 0xff));
+
+        public static void Fill<T>(this T[] arr, T value) =>
+            arr.For(i => arr[i] = value);
+
+        public static void Fill<T>(this T[,] arr, T value) {
+            for (int x = 0; x < arr.GetLength(0); x++) {
+                for (int y = 0; y < arr.GetLength(1); y++) {
+                    arr[x, y] = value;
+                }
+            }
+        }
+            
 
         /// <summary>
         /// Creates a bitmap from a uint array containing pixel data.
@@ -120,17 +133,20 @@ namespace TALOREAL_NETCORE_API.Drawing {
         }
 
         /// <summary>
-        /// Generates an array of uints given a specified width, height and a default color.
+        /// Generates a rectangular array given a specified width, height and a default value.
         /// </summary>
+        /// <typeparam name="T">The type of array to generate.</typeparam>
         /// <param name="width">The width of the array to generate.</param>
         /// <param name="height">The height of the array to generate.</param>
-        /// <param name="clr">The color to fill the array with.</param>
+        /// <param name="dft">The default value to fill the array with.</param>
         /// <returns>The newly created and filled array.</returns>
-        public static uint[,] Generate2DArray(int width, int height, uint clr = 0xff000000) {
-            uint[,] data = new uint[width, height];
-            for (int y = 0; y < height; y++) {
-                for (int x = 0; x < width; x++) {
-                    data[x, y] = clr;
+        public static T[,] Generate2DArray<T>(this Size size, T? dft = default) {
+            T[,] data = new T[size.Width, size.Height];
+            if (dft != null && dft.Equals(default(T)) == false) {
+                for (int y = 0; y < size.Height; y++) {
+                    for (int x = 0; x < size.Width; x++) {
+                        data[x, y] = dft;
+                    }
                 }
             }
             return data;
@@ -143,14 +159,14 @@ namespace TALOREAL_NETCORE_API.Drawing {
         /// <param name="min">The lower bounds of positions to count as neighbors.</param>
         /// <param name="max">The upper bounds of positions to count as neighbors.</param>
         /// <returns>The list of neighbors to the point.</returns>
-        public static List<(int x, int y)> GetNeighbors(this (int x, int y) position, (int x, int y) min, (int x, int y) max) {
-            List<(int x, int y)> neighbors = new();
-            for (int x = position.x - 1; x < position.x + 2; x++) {
-                for (int y = position.y - 1; y < position.y + 2; y++) {
-                    if (x < min.x || y < min.y) continue;
-                    if (x >= max.x || y >= max.y) continue;
-                    if (x == position.x && y == position.y) continue;
-                    neighbors.Add((x, y));
+        public static List<Point> GetNeighbors(this Point position, Point min, Point max) {
+            List<Point> neighbors = new();
+            for (int x = position.X - 1; x < position.X + 2; x++) {
+                for (int y = position.Y - 1; y < position.Y + 2; y++) {
+                    if (x < min.X || y < min.Y) continue;
+                    if (x >= max.X || y >= max.Y) continue;
+                    if (x == position.X && y == position.Y) continue;
+                    neighbors.Add(new Point(x, y));
                 }
             }
             return neighbors;
@@ -163,13 +179,13 @@ namespace TALOREAL_NETCORE_API.Drawing {
         /// <param name="array">The array to apply the bounds of.</param>
         /// <param name="excludeSelf">Should we skip the originating position?</param>
         /// <returns>The list of neighbors to the point.</returns>
-        public static List<(int x, int y)> GetNeighbors(this (int x, int y) position, uint[,] array, bool excludeSelf = true) {
-            List<(int x, int y)> neighbors = new();
-            for (int x = position.x - 1; x < position.x + 2; x++) {
-                for (int y = position.y - 1; y < position.y + 2; y++) {
-                    if (array.IsInBounds((x, y)) == false) continue;
-                    if (excludeSelf == true && x == position.x && y == position.y) continue;
-                    neighbors.Add((x, y));
+        public static List<Point> GetNeighbors(this Point position, uint[,] array, bool excludeSelf = true) {
+            List<Point> neighbors = new();
+            for (int x = position.X - 1; x < position.X + 2; x++) {
+                for (int y = position.Y - 1; y < position.Y + 2; y++) {
+                    if (array.IsInBounds(new Point(x, y)) == false) continue;
+                    if (excludeSelf == true && x == position.X && y == position.Y) continue;
+                    neighbors.Add(new Point(x, y));
                 }
             }
             return neighbors;
@@ -181,8 +197,8 @@ namespace TALOREAL_NETCORE_API.Drawing {
         /// <param name="position">The originating position.</param>
         /// <param name="goal">The distant point.</param>
         /// <returns>The distance to the distant point.</returns>
-        public static double GetSquaredDistance(this (int x, int y) position, (int x, int y) goal) =>
-            ((goal.x - position.x) * (goal.x - position.x)) + ((goal.y - position.y) * (goal.y - position.y));
+        public static double GetSquaredDistance(this Point position, Point goal) =>
+            ((goal.X - position.X) * (goal.X - position.X)) + ((goal.Y - position.Y) * (goal.Y - position.Y));
 
         /// <summary>
         /// Draws a line of uints onto a canvas of uints (2D array).
@@ -192,8 +208,21 @@ namespace TALOREAL_NETCORE_API.Drawing {
         /// <param name="end">The end position of the line.</param>
         /// <param name="clr">The uint color to draw the line.</param>
         /// <param name="thickness">How thick should the line be?</param>
-        public static void DrawLine(this uint[,] canvas, (int x, int y) start, (int x, int y) end, uint clr, int thickness = 1) {
-            int xdif = end.x - start.x, ydif = end.y - start.y,
+        public static void DrawLine(this uint[,] canvas, Point start, Point end, uint clr, int thickness = 1) {
+            int length = (int)Math.Round(Math.Sqrt(start.GetSquaredDistance(end)), 0);
+            double angle = Math.Atan2(end.Y - start.Y, end.X - start.X);
+            for (int i = 0; i < length; i++) {
+                double x = start.X + i * Math.Cos(angle);
+                double y = start.Y + i * Math.Sin(angle);
+                for (int j = 0; j < thickness; j++) {
+                    int finalX = (int)Math.Round(x + j * Math.Sin(angle + Math.PI / 2), 0);
+                    int finalY = (int)Math.Round(y + j * Math.Cos(angle + Math.PI / 2), 0);
+                    canvas.TrySetValue(new Point(finalX, finalY), clr);
+                }
+            }
+
+            return; 
+            /*int xdif = end.X - start.X, ydif = end.Y - start.Y,
                 xabs = Math.Abs(xdif), yabs = Math.Abs(ydif);
             bool horizontal = xabs > yabs;
 
@@ -201,12 +230,12 @@ namespace TALOREAL_NETCORE_API.Drawing {
             for (int i = 0; i < thickness; i++) {
                 int xoffset = horizontal == true ? 0 :
                     (int)Math.Round(i / 2.0, 0) * (i % 2 == 0 ? -1 : 1);
-                int yoffset = horizontal == false ? 0 :
+                int yoffset = horizontal == false  ? 0 :
                     (int)Math.Round(i / 2.0, 0) * (i % 2 == 0 ? -1 : 1);
                 canvas.DrawHorizontalLine(
-                    (start.x + xoffset, start.y + yoffset),
-                    (end.x + xoffset, end.y + yoffset), clr);
-            }
+                    new Point(start.X + xoffset, start.Y + yoffset),
+                    new Point(end.X + xoffset, end.Y + yoffset), clr);
+            }*/
         }
 
         /// <summary>
@@ -216,8 +245,8 @@ namespace TALOREAL_NETCORE_API.Drawing {
         /// <param name="start">The start position of the line.</param>
         /// <param name="end">The end position of the line.</param>
         /// <param name="clr">The uint color to draw the line.</param>
-        public static void DrawHorizontalLine(this uint[,] canvas, (int x, int y) start, (int x, int y) end, uint clr) {
-            int xdif = end.x - start.x, ydif = end.y - start.y,
+        public static void DrawHorizontalLine(this uint[,] canvas, Point start, Point end, uint clr) {
+            int xdif = end.X - start.X, ydif = end.Y - start.Y,
                 xabs = Math.Abs(xdif), yabs = Math.Abs(ydif);
 
             if (xdif == 0 && ydif == 0) { return; } // at goal.
@@ -234,11 +263,11 @@ namespace TALOREAL_NETCORE_API.Drawing {
             int decision = 2 * ydif + xdif;
 
             canvas.TrySetValue(start, clr);
-            for (int x = start.x + xintegral, y = start.y; x != end.x; x += xintegral) {
+            for (int x = start.X + xintegral, y = start.Y; x != end.X; x += xintegral) {
                 int change = decision > 0 ? 1 : 0;
                 y += (yintegral * change);
                 decision += 2 * (ydif - (xdif * change));
-                canvas.TrySetValue((x, y), clr);
+                canvas.TrySetValue(new Point(x, y), clr);
             }
         }
 
@@ -249,8 +278,8 @@ namespace TALOREAL_NETCORE_API.Drawing {
         /// <param name="start">The start position of the line.</param>
         /// <param name="end">The end position of the line.</param>
         /// <param name="clr">The uint color to draw the line.</param>
-        public static void DrawVerticalLine(this uint[,] canvas, (int x, int y) start, (int x, int y) end, uint clr) {
-            int xdif = end.x - start.x, ydif = end.y - start.y,
+        public static void DrawVerticalLine(this uint[,] canvas, Point start, Point end, uint clr) {
+            int xdif = end.X - start.X, ydif = end.Y - start.Y,
                 xabs = Math.Abs(xdif), yabs = Math.Abs(ydif);
 
             if (xdif == 0 && ydif == 0) { return; } // at goal.
@@ -267,12 +296,144 @@ namespace TALOREAL_NETCORE_API.Drawing {
             int decision = 2 * xdif + ydif;
 
             canvas.TrySetValue(start, clr);
-            for (int x = start.x, y = start.y + yintegral; y != end.y; y += yintegral) {
+            for (int x = start.X, y = start.Y + yintegral; y != end.Y; y += yintegral) {
                 int change = decision > 0 ? 1 : 0;
                 x += (xintegral * change);
                 decision += 2 * (xdif - (ydif * change));
-                canvas.TrySetValue((x, y), clr);
+                canvas.TrySetValue(new Point(x, y), clr);
             }
         }
+
+        /// <summary>
+        /// Draws the outline of a circle on a canvas of uints.
+        /// </summary>
+        /// <param name="canvas">The 2D array of uints to draw on.</param>
+        /// <param name="pos">The position to draw at.</param>
+        /// <param name="radius">The radius of the circle to draw.</param>
+        /// <param name="clr">The color to draw the circle.</param>
+        public static void DrawOutlinedCircle(this uint[,] canvas, Point pos, int radius, uint clr) {
+            int xdif, ydif, distance;
+            for (int y = pos.Y - radius - 1; y < pos.Y + radius + 1; y++) {
+                for (int x = pos.X - radius - 1; x < pos.X + radius + 1; x++) {
+                    if (canvas.IsInBounds(new Point(x, y))) {
+                        xdif = Math.Abs(x - pos.X);
+                        ydif = Math.Abs(y - pos.Y);
+                        distance = (xdif * xdif) + (ydif * ydif);
+                        canvas[x, y] = distance < (radius * radius) + radius && 
+                            distance > (radius * radius) - radius ? 
+                                clr : canvas[x, y];
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Draws a filled circle on a canvas of uints.
+        /// </summary>
+        /// <param name="canvas">The 2D array of uints to draw on.</param>
+        /// <param name="pos">The position to draw at.</param>
+        /// <param name="radius">The radius of the circle to draw.</param>
+        /// <param name="clr">The color to draw the circle.</param>
+        public static void DrawFilledCircle(this uint[,] canvas, Point pos, int radius, uint clr) {
+            int xdif, ydif, distance;
+            int distanceCheck = radius * radius;
+            for (int y = pos.Y - radius; y < pos.Y + radius; y++) {
+                for (int x = pos.X - radius; x < pos.X + radius; x++) {
+                    if (canvas.IsInBounds(new Point(x, y))) {
+                        xdif = Math.Abs(x - pos.X);
+                        ydif = Math.Abs(y - pos.Y);
+                        distance = (xdif * xdif) + (ydif * ydif);
+                        canvas[x, y] = distance <= distanceCheck ? clr : canvas[x, y];
+                    }
+                }
+            }
+        }
+
+        public static Size GetSize<T>(this T[,] arr) => 
+            new(arr.GetLength(0), arr.GetLength(1));
+
+        public static Point Get2D(this int ndx, Size bounds) {
+            int limit = bounds.Width * bounds.Height;
+            return new Point(
+                (ndx < 0 || ndx >= limit) ? -1 : ndx % bounds.Width,
+                (ndx < 0 || ndx >= limit) ? -1 : ndx / bounds.Width);
+        }
+
+        public static int Get1D(this Point pos, Size bounds) =>
+            (pos.Y >= bounds.Height || pos.X >= bounds.Width || pos.Y < 0 || pos.X < 0) ?
+                -1 : pos.Y * bounds.Width + pos.X;
+
+        public static Point ToPoint(this Size size) => 
+            new(size.Width, size.Height);
+
+        public static Size ToSize(this Point point) =>
+            new(point.X, point.Y);
+
+        public static uint InvertColor(this uint clr) {
+            return ((clr & 0xff000000) >> 24) +
+                ((clr & 0x00ff0000) >> 8) +
+                ((clr & 0x0000ff00) << 8) +
+                ((clr & 0x000000ff) << 24);
+        }
+
+        public static uint BlendColors(this uint bottom, uint toApply) {
+            int alpha = (int)toApply.GetPartialColor(0xff000000, 24);
+            uint result = alpha == 0 ? bottom : (alpha == 255 ? toApply : 0);
+            if (alpha != 0 && alpha != 255) {
+                int src, dst, shift;
+                float ratio = alpha / 255.0f;
+                for (int i = 0; i < 4; i++) {
+                    shift = i * 8;
+                    src = (int)toApply.GetPartialColor(255u << shift, shift);
+                    dst = (int)bottom.GetPartialColor(255u << shift, shift);
+                    dst = (int)((src - dst) * ratio) + dst;
+                    result += ((uint)dst << shift);
+                }
+            }
+            return result;
+        }
+
+        public static uint GetPartialColor(this uint baseClr, uint toggles, int shift) {
+            uint num = baseClr & toggles;
+            num = shift == 0 ? num : (shift < 0 ? num << (shift * -1) : num >> shift);
+            return num;
+        }
+
+        #region Point and Size Arithmetic
+
+        #region Point
+
+        public static Point Add(this Point og, Point offset) => 
+            new(og.X + offset.X, og.Y + offset.Y);
+
+        public static Point Minus(this Point og, Point offset) => 
+            new(og.X - offset.X, og.Y - offset.Y);
+
+        public static Point Multiply(this Point og, double scalar) => 
+            new((int)(og.X * scalar), (int)(og.Y * scalar));
+
+        public static Point Divide(this Point og, double scalar) => 
+            new((int)(og.X / scalar), (int)(og.Y / scalar));
+
+        #endregion
+
+        #region Size
+
+        public static Size Add(this Size og, Size offset) =>
+            new(og.Width + offset.Width, og.Height + offset.Height);
+
+        public static Size Minus(this Size og, Size offset) =>
+            new(og.Width - offset.Width, og.Height - offset.Height);
+
+        public static Size Multiply(this Size og, double scalar) =>
+            new((int)(og.Width * scalar), (int)(og.Height * scalar));
+
+        public static Size Divide(this Size og, double scalar) =>
+            new((int)(og.Width / scalar), (int)(og.Height / scalar));
+
+        #endregion
+
+        #endregion
+
     }
 }

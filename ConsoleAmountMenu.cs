@@ -1,9 +1,9 @@
 ﻿namespace TALOREAL_NETCORE_API {
 
-    public class ConsoleAmountMenu {
+    public class ConsoleAmountMenu(int maxValue = -1) {
 
         public int Selected { get; private set; } = 0;
-        public int MaxCombinedValue { get; private set; } = -1;
+        public int MaxCombinedValue { get; private set; } = maxValue;
 
         public string PreChoiceText = "";
         public string PostChoiceText = "";
@@ -14,7 +14,7 @@
         public event Action<ConsoleAmountMenu>?      OnMenuClosed;
 
         public int ItemCount => Items.Count;
-        private readonly List<ConsoleAmountMenuItem> Items = new();
+        private readonly List<ConsoleAmountMenuItem> Items = [];
 
         public int TotalValue {
             get {
@@ -36,14 +36,10 @@
             get { return index < 0 || index >= Items.Count ? null : Items[index]; }
         }
 
-        public ConsoleAmountMenu(int maxValue = -1) {
-            MaxCombinedValue = maxValue;
-        }
-
         public void AddItem(ConsoleAmountMenuItem item) { Items.Add(item); }
 
         public int[] GetValues() {
-            if (Items.Count < 1) { return Array.Empty<int>(); }
+            if (Items.Count < 1) { return []; }
             bool choosen = false, ogVisible = Console.CursorVisible;
             ConsoleKeyInfo key; Console.CursorVisible = false;
             while ((Selected != Items.Count) || choosen == false) {

@@ -1,6 +1,6 @@
 ﻿namespace TALOREAL_NETCORE_API {
 
-    public class ConsoleMenuItem {
+    public class ConsoleMenuItem(string text) {
 
         protected readonly static Dictionary<ConsoleColor, ConsoleColor> InverseTable = new() {
             { ConsoleColor.Red, ConsoleColor.Green }, { ConsoleColor.White, ConsoleColor.Black },
@@ -14,15 +14,11 @@
         };
 
 
-        public string Text { get; protected set; } = "";
-
+        public string Text { get; protected set; } = text;
         public ConsoleColor TextColor { get; protected set; } = ConsoleColor.White;
         public ConsoleColor BackColor { get; protected set; } = ConsoleColor.Black;
 
         public Action OnSelect { get; protected set; } = () => { };
-
-
-        public ConsoleMenuItem(string text) { Text = text; }
 
         public virtual ConsoleMenuItem SetColors(ConsoleColor textColor, ConsoleColor backColor) {
             TextColor = textColor; 

@@ -19,12 +19,12 @@ namespace TALOREAL_NETCORE_API {
         /// <summary>
         /// A string key/value database.
         /// </summary>
-        private static readonly SerializableDictionary<string, string> Database = new();
+        private static readonly SerializableDictionary<string, string> Database = [];
 
         /// <summary>
         /// Events that occur when a value in Database changes.
         /// </summary>
-        private readonly static Dictionary<string, Listener?> OnChanged = new();
+        private readonly static Dictionary<string, Listener?> OnChanged = [];
 
         /// <summary>
         /// Represents a conversion from a string to some other type.
@@ -204,8 +204,8 @@ namespace TALOREAL_NETCORE_API {
                 ?? throw new NullReferenceException("ERROR: Null string representation.")));
 
             if (Autosave) { SaveSettings(); }
-            if (inDatabase && OnChanged.ContainsKey(STKey)) {
-                (OnChanged[STKey] ?? throw new NullReferenceException("ERROR: Listening delegate null."))(key!, typeof(T), old, obj);
+            if (inDatabase && OnChanged.TryGetValue(STKey, out Listener? ev)) {
+                (ev ?? throw new NullReferenceException(""))(key!, typeof(T), old, obj);
             }
             return true;
         }
@@ -218,10 +218,14 @@ namespace TALOREAL_NETCORE_API {
         /// <param name="onChange">The method to call when change happens.</param>
         public static void ListenTo<T>(string key, Listener onChange) {
             string STKey = StrTyp_Key.Get_STKCode(key, typeof(T));
-            if (OnChanged.ContainsKey(STKey)) {
+            if (OnChanged.TryAdd(STKey, onChange) == false) {
                 OnChanged[STKey] += onChange;
             }
-            else { OnChanged.Add(STKey, onChange); }
+            //old version
+            /*if (OnChanged.ContainsKey(STKey)) {
+                OnChanged[STKey] += onChange;
+            }
+            else { OnChanged.Add(STKey, onChange); } */
         }
 
         /// <summary>
@@ -259,12 +263,11 @@ namespace TALOREAL_NETCORE_API {
         /// <returns>A value determining if success/failure.</returns>
         public static bool RemoveValue<T>(string key) {
             if (!IsGoodKey(key, typeof(T), out key)) { return false; }
-            if (Database.ContainsKey(key)) {
-                Database.Remove(key);
-                if (Autosave) { SaveSettings(); }
-                return true;
+            bool removed = Database.Remove(key);
+            if (removed && Autosave) {
+                SaveSettings(); 
             }
-            return false;
+            return removed;
         }
 
         /// <summary>

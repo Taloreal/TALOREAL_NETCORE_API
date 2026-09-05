@@ -1,8 +1,13 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using System.Drawing;
+using System.Numerics;
+using System.Formats.Asn1;
+using System.Text;
 
 namespace TALOREAL_NETCORE_API {
+
 
     public enum ForLoopDirection { 
         Forward, Backward
@@ -14,6 +19,7 @@ namespace TALOREAL_NETCORE_API {
 
     public static class UtilityExtensions {
 
+
         #region Array Extensions
 
         /// <summary>
@@ -23,13 +29,13 @@ namespace TALOREAL_NETCORE_API {
         /// <param name="arr">The array to get the items from.</param>
         /// <returns>A traditionally typed T[] array with indexers.</returns>
         public static T[] AsTypedArray<T>(this Array arr) {
-            List<T> asList = new();
+            List<T> asList = [];
             foreach (object? item in arr) {
                 if (item is T t && item != null) { 
                     asList.Add(t);
                 }
             }
-            return asList.ToArray();
+            return [.. asList];
         }
 
         /// <summary>
@@ -65,13 +71,13 @@ namespace TALOREAL_NETCORE_API {
         public static T[] SubArray<T>(this T[] arr, int start, int count = -1) {
             start = (start < 0) ? 0 : start;
             count = (start + count >= arr.Length) ? arr.Length - start : count;
-            if (count < 1) { return Array.Empty<T>(); }
+            if (count < 1) { return []; }
             List<T> objs = new(count);
             for (int i = 0; i < count; i++) {
                 int pos = i + start;
                 objs.Add(arr[pos]);
             }
-            return objs.ToArray();
+            return [.. objs];
         }
 
         /// <summary>
@@ -225,27 +231,7 @@ namespace TALOREAL_NETCORE_API {
         /// <returns>True if all of subset is in the array.</returns>
         public static bool ContainsArray<T>(this T?[] array, T?[] subset) {
             if (array.Length < subset.Length) { return false; }
-
-            int first = 0, last = subset.Length - 1;
-            bool[] same = new bool[subset.Length];
-            for (int i = 0; i < array.Length; i++) {
-                for (int j = first; j <= last; j++) {
-                    bool s = array[i] == null && subset[j] == null;
-                    if (s == false && (array[i] == null || subset[j] == null)) { continue; }
-                    if (s == true || array[i]!.Equals(subset[j])) {
-                        same[j] = true;
-                        if (j == first) { first += 1; }
-                        if (j == last) { last -= 1; }
-                        break;
-                    }
-                }
-            }
-            for (int i = 0; i < same.Length; i++) {
-                if (same[i] == false) {
-                    return false;
-                }
-            }
-            return true;
+            return subset.All(array.Contains);
         }
 
         /// <summary>
@@ -277,10 +263,10 @@ namespace TALOREAL_NETCORE_API {
         /// <param name="array">The array to access.</param>
         /// <param name="position">The position at which to check.</param>
         /// <returns>True if the position is within the array's bounds.</returns>
-        public static bool IsInBounds<T>(this T[,] array, (int x, int y) position) {
-            var (min, max) = array.GetBounds();
-            return position.x >= min.x && position.x < max.x &&
-                position.y >= min.y && position.y < max.y;
+        public static bool IsInBounds<T>(this T[,] array, Point position) {
+            var bounds = array.GetBounds();
+            return position.X >= bounds.X && position.X < bounds.X + bounds.Width &&
+                position.Y >= bounds.Y && position.Y < bounds.Y + bounds.Height;
         }
 
         /// <summary>
@@ -298,8 +284,8 @@ namespace TALOREAL_NETCORE_API {
         /// <typeparam name="T">The type of elements in the array.</typeparam>
         /// <param name="array">The array to access.</param>
         /// <returns>((0, 0), (array.GetLength(0), array.GetLength(1)))</returns>
-        public static ((int x, int y) min, (int x, int y) max) GetBounds<T>(this T[,] array) =>
-            ((0, 0), (array.GetLength(0), array.GetLength(1)));
+        public static Rectangle GetBounds<T>(this T[,] array) =>
+            new(new Point(0, 0), new Size(array.GetLength(0), array.GetLength(1)));
 
         /// <summary>
         /// Gets the lower and upper bounds of the array.
@@ -317,9 +303,9 @@ namespace TALOREAL_NETCORE_API {
         /// <param name="position">The position at which to change.</param>
         /// <param name="value">The new value to set in the array.</param>
         /// <returns>True if the position's element was updated.</returns>
-        public static bool TrySetValue<T>(this T[,] array, (int x, int y) position, T value) {
+        public static bool TrySetValue<T>(this T[,] array, Point position, T value) {
             if (array.IsInBounds(position)) {
-                array[position.x, position.y] = value;
+                array[position.X, position.Y] = value;
                 return true;
             }
             return false;
@@ -341,6 +327,23 @@ namespace TALOREAL_NETCORE_API {
             return false;
         }
 
+        /// <summary>
+        /// Performs an action for a specified number of elements in an array starting at a given index.
+        /// Does not throw out of bounds exceptions.
+        /// </summary>
+        /// <typeparam name="T">The type of element.</typeparam>
+        /// <param name="array">The array to access.</param>
+        /// <param name="start">The position to start at.</param>
+        /// <param name="howMany">How many subsequent elements to perform the action for.</param>
+        /// <param name="action">The delegate to perform.</param>
+        public static void DoForElements<T>(this T[] array, int start, int howMany, Action<int> action) {
+            int count = 0;
+            for (int i = start; i < array.Length && count < howMany; i++) {
+                action(i);
+                count++;
+            }
+        }
+
         #endregion
 
         #region String Parsing
@@ -354,8 +357,8 @@ namespace TALOREAL_NETCORE_API {
         /// <param name="strOps">Get rid of empty strings?</param>
         /// <returns>The string split into an array of strings.</returns>
         public static string[] Split(this string toSplit, string delimiter, StringSplitOptions strOps = StringSplitOptions.None) {
-            if (toSplit.Length < delimiter.Length) { return new string[] { toSplit }; }
-            List<string> entries = new();
+            if (toSplit.Length < delimiter.Length) { return [toSplit]; }
+            List<string> entries = [];
             string working = "";
             for (int i = 0; i < toSplit.Length; i++) {
                 working += toSplit[i];
@@ -368,27 +371,30 @@ namespace TALOREAL_NETCORE_API {
             if (strOps == StringSplitOptions.RemoveEmptyEntries) {
                 entries.RemoveAll(s => string.IsNullOrEmpty(s));
             }
-            return entries.ToArray();
+            return [.. entries];
         }
 
         /// <summary>
-        /// Attempts to parse a bool from a string.
+        /// Attempts to parse a bool from a string. (Expands on the built in bool.TryParse method.)
         /// </summary>
         /// <param name="str">The string to parse.</param>
         /// <param name="result">The resulting bool.</param>
         /// <returns>Did the parsing work?</returns>
-        public static bool TryParseBool(string str, out bool result) {
+        public static bool TryParseBool(string? str, out bool result) {
             result = false;
-            str = str.ToLower();
+
             if (string.IsNullOrEmpty(str)) { return false; }
-            if (str[0] == '0' || str.ToLower().StartsWith("false")) { return true; }
-            if (str[0] == '1' || str.ToLower().StartsWith("true")) {
-                result = true; return true;
-            }
-            if (str.StartsWith("no") || str == "n") { return true; }
-            if (str.StartsWith("yes") || str.StartsWith("yea") || str == "y") {
-                result = true; return true;
-            }
+            if (bool.TryParse(str, out result)) { return true; }
+
+            string comp = str.ToLower().Trim();
+            if (comp.Length > 3) { return false; } // too long for our additional checks.
+
+            string[] noResps =  [ "-", "0", "f", "n", "no",  ];
+            string[] yesResps = [ "+", "1", "t", "y", "yes", ];
+
+            if (noResps.Any(resp => comp == resp)) { return true; }
+            if (yesResps.Any(resp => comp == resp)) { result = true; return true; }
+
             return false;
         }
 
@@ -400,13 +406,13 @@ namespace TALOREAL_NETCORE_API {
         /// <param name="areAllowed">Determines if the filter is the allowed or not allowed characters.</param>
         /// <returns>The resulting filtered string.</returns>
         public static string Filter(this string original, string filter, bool areAllowed = true) {
-            string filtered = "";
+            StringBuilder filtered = new StringBuilder(original.Length);
             foreach (char c in original) {
                 if (filter.Contains(c) == areAllowed) { 
-                    filtered += c;
+                    filtered.Append(c);
                 }
             }
-            return filtered;
+            return filtered.ToString();
         }
 
         /// <summary>
@@ -467,11 +473,11 @@ namespace TALOREAL_NETCORE_API {
         /// <param name="csv">Should the bytes be comma seperated?</param>
         /// <returns>The resulting bits as a string.</returns>
         public static string GetBinaryString(this byte[] data, bool csv = true) {
-            string binary = "";
+            StringBuilder binary = new StringBuilder(data.Length * 10); // 8 bits + 1 for the comma
             for (int i = 0; i < data.Length; i++) {
-                binary += Convert.ToString(data[i], 2).PadLeft(8, '0') + (csv == true ? ", " : "");
+                binary.Append(Convert.ToString(data[i], 2).PadLeft(8, '0') + (csv == true ? ", " : ""));
             }
-            return binary;
+            return binary.ToString();
         }
 
         /// <summary>
@@ -713,13 +719,25 @@ namespace TALOREAL_NETCORE_API {
         /// <param name="condition">The condition which must be met.</param>
         /// <returns>All of the 0 based indexs of elements which meet the predicate.</returns>
         public static List<int> FindAllIndexes<T>(this List<T> list, Predicate<T> condition) { 
-            List<int> ndxs = new();
+            List<int> ndxs = [];
             for (int i = 0; i < list.Count; i++) {
                 if (condition(list[i])) {
                     ndxs.Add(i);
                 }
             }
             return ndxs;
+        }
+
+        /// <summary>
+        /// Performs a delegate for each element in a list.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="list">The list to perform the delegate through.</param>
+        /// <param name="toDo">The delegate to perform.</param>
+        public static void For<T>(this List<T> list, Action<T, int> toDo) {
+            for (int i = 0; i < list.Count; i++) { 
+                toDo(list[i], i);
+            }
         }
 
         #endregion
@@ -843,6 +861,11 @@ namespace TALOREAL_NETCORE_API {
         public static void RemoveAll<T>(this LinkedList<T> span, Predicate<T> conditional) {
             if (span.Count > 0 && span.First != null) {
                 LinkedListNode<T> searchNode = span.First;
+                while (span.First != null && conditional(span.First.Value) == true) {
+                    span.RemoveFirst();
+                    searchNode = span.First;
+                }
+                if (searchNode == null) { return; } // nothing left in the list.
                 while (searchNode.Next != null) { 
                     while (searchNode.Next != null && conditional(searchNode.Next.Value) == true) {
                         span.Remove(searchNode.Next);
@@ -853,5 +876,31 @@ namespace TALOREAL_NETCORE_API {
         }
         #endregion
 
+        #region Math Extensions
+
+        public static float ToRadians(this float degrees) =>
+            (float)((double)degrees).ToRadians();
+
+        public static float ToDegrees(this float radians) =>
+            (float)((double)radians).ToDegrees();
+
+        public static double ToRadians(this double degrees) =>
+            degrees * (Math.PI / 180.0);
+
+        public static double ToDegrees(this double radians) =>
+            radians * (180.0 / Math.PI);
+
+        public static float GetCrossProduct(this Vector2 v1, Vector2 v2) =>
+            v1.X * v2.Y - v1.Y * v2.X;
+
+        public static float AngleBetween(this Vector2 v1, Vector2 v2) {
+            float dotProduct = Vector2.Dot(v1, v2);
+            float magnitudeV1 = v1.Length();
+            float magnitudeV2 = v2.Length();
+            float cosTheta = dotProduct / (magnitudeV1 * magnitudeV2);
+            return (float)(Math.Acos(cosTheta).ToDegrees());
+        }
+
+        #endregion
     }
 }
