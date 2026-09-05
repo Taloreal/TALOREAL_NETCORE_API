@@ -63,5 +63,24 @@ namespace TALOREAL_NETCORE_API {
 			OnSelect = onSelect ?? OnSelect;
 			return this;
 		}
+
+		public virtual ConsoleMenuItem SetText(string text) {
+			Text = text;
+			return this;
+		}
+
+		public virtual ConsoleMenuItem AddOnKeyPressAction(Action<ConsoleMenuItem?, ConsoleKeyInfo>? action) {
+			if (action != null) {
+				OnKeyPress += action;
+			}
+			return this;
+		}
+
+		public virtual ConsoleMenuItem RemoveOnKeyPressAction(Action<ConsoleMenuItem?, ConsoleKeyInfo>? action) {
+			if (action != null) {
+				OnKeyPress -= action;
+			}
+			return this;
+		}
 	}
 }
