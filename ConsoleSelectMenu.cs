@@ -153,8 +153,8 @@ namespace TALOREAL_NETCORE_API {
 
         private void DisplayMenu() {
             // clear the console if needed
-            if (ClearConsole) { 
-                ConsoleExt.TryClear();
+            if (ClearConsole) {
+                Console.Clear();
             }
 
             OnDrawMenu?.Invoke(this);

@@ -122,7 +122,7 @@ namespace TALOREAL_NETCORE_API {
             int padding = MaxTextLength + 1;
             ConsoleColor ogText = Console.ForegroundColor;
             ConsoleColor ogBack = Console.BackgroundColor;
-            ConsoleExt.TryClear();
+            Console.Clear();
             OnDrawMenu?.Invoke(this);
             if (MaxCombinedValue > 0) {
                 Console.BackgroundColor = ConsoleColor.Black;
