@@ -1,0 +1,15 @@
+root = true
+
+# Indentation is TABS for C# in this codebase - a deliberate accessibility
+# choice, not a formatting preference. Visual Studio's Tools > Options setting
+# is per-user and does not survive; this file does.
+#
+# Self-contained (root = true) on purpose: this project is also cloned and
+# built on its own, and its source is copied into a separate .NET Framework
+# 3.5 build of the same assembly. It cannot rely on a parent .editorconfig.
+[*.cs]
+indent_style = tab
+indent_size = 4
+tab_width = 4
+trim_trailing_whitespace = true
+insert_final_newline = true

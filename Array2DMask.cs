@@ -56,7 +56,7 @@ namespace TALOREAL_NETCORE_API {
 		/// <param name="height">The mask's Height.</param>
 		public Array2DMask(T[] array, int width, int height) {
 			int size = width * height;
-			if (width >= 0 && height >= 0 && size < array.Length) {
+			if (width >= 0 && height >= 0 && size <= array.Length) {
 				Width = width;
 				Height = height;
 				InternalArray = array;

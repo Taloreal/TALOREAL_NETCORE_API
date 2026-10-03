@@ -39,7 +39,7 @@ namespace TALOREAL_NETCORE_API {
 			Text = text;
 		}
 
-		public virtual void ProcessKey(ConsoleKeyInfo key)  => OnKeyPress?.Invoke(this, key);
+		public virtual void ProcessKey(ConsoleKeyInfo key) => OnKeyPress?.Invoke(this, key);
 
 		public virtual ConsoleMenuItem SetColors(ConsoleColor textColor, ConsoleColor backColor) {
 			TextColor = textColor;
