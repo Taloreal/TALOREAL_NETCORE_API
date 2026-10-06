@@ -1,4 +1,6 @@
-﻿using System.Xml.Serialization;
+﻿using System.Globalization;
+using System.Text;
+using System.Xml.Serialization;
 
 namespace TALOREAL_NETCORE_API {
 
@@ -226,6 +228,144 @@ namespace TALOREAL_NETCORE_API {
 				return true;
 			}
 			return false;
+		}
+
+		/// <summary>
+		/// Gets a list of values from the database. The list must have been saved with SetList
+		/// under the same key and element type.
+		/// </summary>
+		/// <typeparam name="T">The element type; any type GetValue supports.</typeparam>
+		/// <param name="key">The key to look up in the database.</param>
+		/// <param name="result">The decoded list. Empty when nothing was fetched.</param>
+		/// <returns>True if a list was found and every element converted; false otherwise.</returns>
+		public static bool GetList<T>(string key, out List<T> result) {
+			result = new List<T>();
+			bool worked = false;
+			bool nullptr = key == null || key == "";
+			bool noConvert = Converter.ContainsKey(typeof(T)) == false;
+			if (nullptr == false && noConvert == false) {
+				string STKey = StringTypeKey.GetSettingsKeyCode(key!, typeof(List<T>));
+				if (Database.TryGetValue(STKey, out string? encoded) == true) {
+					worked = TryDecodeList(encoded, out List<string> parts);
+					Parser parse = Converter[typeof(T)];
+					int index = 0;
+					while (worked == true && index < parts.Count) {
+						object? value = parse(parts[index], out bool parsed);
+						worked = parsed == true && value != null;
+						if (worked == true) {
+							result.Add((T)value!);
+						}
+						index += 1;
+					}
+				}
+			}
+			if (worked == false) {
+				result.Clear();
+			}
+			return worked;
+		}
+
+		/// <summary>
+		/// Sets a list of values in the database under one key. Each element is stored in the
+		/// same string form a scalar of its type would be, and the whole list is kept as one
+		/// hex-encoded value, so an element may contain any character.
+		/// </summary>
+		/// <typeparam name="T">The element type; any type SetValue supports.</typeparam>
+		/// <param name="key">The key to save to the database.</param>
+		/// <param name="values">The list to save.</param>
+		/// <param name="onChange">An optional event to happen when the list is changed. Unlike SetValue, a list fires its listeners on the first write too, with an empty old list.</param>
+		/// <returns>A value determining if the key/list were saved in the database.</returns>
+		public static bool SetList<T>(string key, IList<T> values, Listener? onChange = null) {
+			bool nullptr = key == null || key == "";
+			bool noConvert = Converter.ContainsKey(typeof(T)) == false;
+			if (nullptr == false && noConvert == false && values != null) {
+				string STKey = StringTypeKey.GetSettingsKeyCode(key!, typeof(List<T>));
+				if (onChange != null) {
+					ListenTo<List<T>>(key!, onChange);
+				}
+
+				GetList<T>(key!, out List<T> old);   // empty when this is the first write
+				Database.Remove(STKey);
+				Database.Add(STKey, EncodeList(values));
+
+				if (Autosave == true) {
+					SaveSettings();
+				}
+				if (OnChanged.TryGetValue(STKey, out Listener? ev) == true) {
+					Listener toCall = ev ??
+						throw new NullReferenceException("ERROR: Null listener reference.");
+					toCall(key!, typeof(List<T>), old, values);
+				}
+				return true;
+			}
+			return false;
+		}
+
+		/// <summary>
+		/// Encodes a list as hex, two characters per byte. Each element is written as a
+		/// 4-byte little-endian length followed by its UTF-8 bytes, so no separator or
+		/// escaping is needed.
+		/// </summary>
+		/// <typeparam name="T">The element type.</typeparam>
+		/// <param name="values">The list to encode.</param>
+		/// <returns>The hex string. Empty for an empty list.</returns>
+		private static string EncodeList<T>(IList<T> values) {
+			List<byte> bytes = new();
+			foreach (T value in values) {
+				string text = value == null ? "" : (value.ToString() ?? "");
+				byte[] data = Encoding.UTF8.GetBytes(text);
+				int length = data.Length;
+				bytes.Add((byte)(length & 0xFF));
+				bytes.Add((byte)((length >> 8) & 0xFF));
+				bytes.Add((byte)((length >> 16) & 0xFF));
+				bytes.Add((byte)((length >> 24) & 0xFF));
+				bytes.AddRange(data);
+			}
+
+			StringBuilder hex = new(bytes.Count * 2);
+			foreach (byte current in bytes) {
+				hex.Append(current.ToString("X2"));
+			}
+			return hex.ToString();
+		}
+
+		/// <summary>
+		/// Decodes a string written by EncodeList back into its element strings.
+		/// </summary>
+		/// <param name="encoded">The hex string.</param>
+		/// <param name="parts">The element strings, in order. Empty on failure.</param>
+		/// <returns>True if the whole string decoded cleanly; false on any malformed byte or length.</returns>
+		private static bool TryDecodeList(string encoded, out List<string> parts) {
+			parts = new List<string>();
+			bool worked = encoded.Length % 2 == 0;
+			byte[] bytes = new byte[encoded.Length / 2];
+			int position = 0;
+			while (worked == true && position < bytes.Length) {
+				string pair = encoded.Substring(position * 2, 2);
+				worked = byte.TryParse(pair, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out bytes[position]);
+				position += 1;
+			}
+
+			int offset = 0;
+			while (worked == true && offset < bytes.Length) {
+				worked = offset + 4 <= bytes.Length;
+				if (worked == true) {
+					int length = bytes[offset]
+						| (bytes[offset + 1] << 8)
+						| (bytes[offset + 2] << 16)
+						| (bytes[offset + 3] << 24);
+					offset += 4;
+					worked = length >= 0 && offset + length <= bytes.Length;
+					if (worked == true) {
+						parts.Add(Encoding.UTF8.GetString(bytes, offset, length));
+						offset += length;
+					}
+				}
+			}
+			if (worked == false) {
+				parts.Clear();
+			}
+			return worked;
 		}
 
 		/// <summary>
