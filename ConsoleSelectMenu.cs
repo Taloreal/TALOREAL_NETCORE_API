@@ -17,6 +17,10 @@ namespace TALOREAL_NETCORE_API {
 
 		public const int PulseRate = 62; // milliseconds between key checks
 		public const int MaxPulses = 15; // maximum number of heartbeats before refreshing the menu
+		public const int HoldGap = 200; // milliseconds; the same arrow arriving sooner is a held key, not a new press
+
+		private ConsoleKey lastArrow = ConsoleKey.NoName;
+		private int lastArrowTick = 0;
 
 		static readonly string[] QuitPhrases = ["exit", "quit", "continue", "break", "back"];
 
@@ -24,6 +28,8 @@ namespace TALOREAL_NETCORE_API {
 		public bool ClearConsole { get; private set; } = clearOnRefresh;
 		public bool Loops { get; private set; } = loops;
 		public bool Numbered { get; private set; } = numbered;
+		/// <summary>Whether Up from the first row goes to the last and Down from the last to the first. Off unless set; a menu of one or two rows never turns.</summary>
+		public bool Wraps { get; private set; } = false;
 		private bool MenuOpen = false;
 
 		public int Selected { get; private set; } = -1;
@@ -136,11 +142,27 @@ namespace TALOREAL_NETCORE_API {
 								}
 								if (heartbeat < MaxPulses) {
 									key = Console.ReadKey(true);
+									// A wrapping menu turns at either end; one or two rows never need to. A
+									// held arrow runs to the end and stops there: the turn wants a fresh press,
+									// read as the same arrow arriving after a pause longer than a key repeat.
+									bool turns = Wraps == true && Choices.Count > 2;
+									int now = Environment.TickCount;
+									bool held = key.Key == lastArrow && now - lastArrowTick < HoldGap;
 									if (key.Key == ConsoleKey.UpArrow) {
+										if (turns == true && Selected == 0 && held == false) {
+											Selected = Choices.Count;
+										}
 										Selected = Math.Max(0, Selected - 1);
 									}
 									if (key.Key == ConsoleKey.DownArrow) {
+										if (turns == true && Selected == Choices.Count - 1 && held == false) {
+											Selected = -1;
+										}
 										Selected = Math.Min(Choices.Count - 1, Selected + 1);
+									}
+									if (key.Key == ConsoleKey.UpArrow || key.Key == ConsoleKey.DownArrow) {
+										lastArrow = key.Key;
+										lastArrowTick = now;
 									}
 									if (key.Key != ConsoleKey.UpArrow && key.Key != ConsoleKey.DownArrow) {
 										Choices[Selected].ProcessKey(key);
@@ -379,6 +401,16 @@ namespace TALOREAL_NETCORE_API {
 		/// <return>This menu.</return>
 		public ConsoleSelectMenu SetLoops(bool loops) {
 			Loops = loops;
+			return this;
+		}
+
+		/// <summary>
+		/// Sets Wraps and returns the menu.
+		/// </summary>
+		/// <param name="wraps">Should Up and Down turn at the ends?</param>
+		/// <return>This menu.</return>
+		public ConsoleSelectMenu SetWraps(bool wraps) {
+			Wraps = wraps;
 			return this;
 		}
 
